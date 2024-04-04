@@ -6,11 +6,11 @@
 >
 	<div>
 		<p class="text-md font-semibold" id="title">Deprivation Index 2021</p>
-		<p class="mb-2">Canada</p>
+		<p>Canada</p>
 	</div>
 
 	<div>
-		<select id="variable-select" class="p-2 rounded">
+		<select id="variable-select" class="p-2 rounded border">
 			<option value="A">Residential instability</option>
 			<option value="B">Economic dependency</option>
 			<option value="C">Ethno-cultural composition</option>
@@ -26,10 +26,12 @@
 		</div>
 	</div>
 
+	<div id="meta">Higher quintiles mean more deprived, lower mean less.</div>
+
 	<div id="hover">Hover over a point to see its value.</div>
 </div>
 
-<script lang="ts">
+<script>
 	import mapboxgl from "mapbox-gl";
 	import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 	import chroma from "chroma-js";
@@ -65,7 +67,18 @@
 	});
 
 	function getColorStops() {
-		return colorScale.domain().flatMap((d) => [d, colorScale(d).hex()]);
+		return [
+			-2,
+			"#0571b0",
+			-1,
+			"#92c5de",
+			0,
+			"#f7f7f7",
+			1,
+			"#f4a582",
+			2,
+			"#ca0020",
+		];
 	}
 
 	map.on("load", () => {
@@ -88,8 +101,8 @@
 				type: "fill",
 				source: "background",
 				"source-layer": "simplified_canada",
-				layout: {
-					visibility: "none",
+				paint: {
+					"fill-color": "rgba(0, 0, 0, 0)",
 				},
 			},
 			firstLabelLayerId
@@ -104,31 +117,36 @@
 			maxzoom: 15,
 		});
 
-		map.addLayer({
-			id: "buildings-layer",
-			type: "fill",
-			source: "foreground",
-			"source-layer": "canada_intersect",
-			paint: {
-				"fill-color": [
-					"case",
-					["!=", ["get", selectedVariable], null],
-					[
-						"interpolate",
-						["linear"],
-						["get", selectedVariable],
-						...getColorStops(),
+		console.log(getColorStops());
+
+		map.addLayer(
+			{
+				id: "buildings-layer",
+				type: "fill",
+				source: "foreground",
+				"source-layer": "canada_intersect",
+				paint: {
+					"fill-color": [
+						"case",
+						["!=", ["get", selectedVariable], null],
+						[
+							"interpolate",
+							["linear"],
+							["get", selectedVariable],
+							...getColorStops(),
+						],
+						"rgba(0, 0, 0, 0)",
 					],
-					"rgba(0, 0, 0, 0)",
-				],
-				"fill-opacity": [
-					"case",
-					["!=", ["get", selectedVariable], null],
-					1,
-					0,
-				],
+					"fill-opacity": [
+						"case",
+						["!=", ["get", selectedVariable], null],
+						1,
+						0,
+					],
+				},
 			},
-		});
+			firstLabelLayerId
+		);
 
 		function updateMap() {
 			map.setPaintProperty("buildings-layer", "fill-color", [
@@ -140,17 +158,17 @@
 		}
 
 		variableSelect.addEventListener("change", () => {
-			selectedVariable = variableSelect.value;
+			selectedVariable = (variableSelect as HTMLSelectElement).value;
 			updateMap();
 		});
 
 		map.on("mousemove", "background-layer", (e) => {
-			const infoDiv = document.querySelector("#hover");
+			const infoDiv = document.querySelector("#meta");
 			if (e.features.length === 0 || !infoDiv) return;
 			const feature = e.features[0];
 			const quintile =
-				feature.properties[`${selectedVariable}_Q`].toFixed(2);
-			infoDiv.innerHTML = `This area is in quintile <span class="font-semibold">${quintile} tons</span>, out of 5.`;
+				feature.properties[`${selectedVariable}_Q`].toFixed(0);
+			infoDiv.innerHTML = `This area is in quintile <span class="font-semibold">${quintile}</span>, out of 5.`;
 		});
 
 		const geocoder = new MapboxGeocoder({
@@ -160,6 +178,5 @@
 		document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
 
 		map.addControl(new mapboxgl.NavigationControl());
-		map.addControl(new mapboxgl.AttributionControl({ compact: true }));
 	});
 </script>
