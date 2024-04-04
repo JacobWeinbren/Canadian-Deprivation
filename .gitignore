@@ -2,3 +2,7 @@ source/
 .env
 venv/
 output/
+package-lock.json
+node_modules/
+.vscode/
+.DS_Store

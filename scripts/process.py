@@ -11,10 +11,14 @@ with open(csv_file_path, mode="r", encoding="utf-8") as csv_file:
     for row in csv_reader:
         # Use PRCDDA as key and store rounded quintiles information
         csv_data[row["PRCDDA"]] = {
-            "A": round(float(row["Residential instability Quintiles"])),
-            "B": round(float(row["Economic dependency Quintiles"])),
-            "C": round(float(row["Ethno-cultural composition Quintiles"])),
-            "D": round(float(row["Situational vulnerability Quintiles"])),
+            "A": round(float(row["Residential instability Scores"]), 2),
+            "B": round(float(row["Economic dependency Scores"]), 2),
+            "C": round(float(row["Ethno-cultural composition Scores"]), 2),
+            "D": round(float(row["Situational vulnerability Scores"]), 2),
+            "A_Q": round(float(row["Residential instability Quintiles"])),
+            "B_Q": round(float(row["Economic dependency Quintiles"])),
+            "C_Q": round(float(row["Ethno-cultural composition Quintiles"])),
+            "D_Q": round(float(row["Situational vulnerability Quintiles"])),
         }
 
 # Load GeoJSON data

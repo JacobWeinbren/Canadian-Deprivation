@@ -11,15 +11,16 @@
 ## Commands
 
 ````bash
-    node --max-old-space-size=20000 /usr/local/bin/mapshaper output/merged.geojson -simplify weighted 20% -filter-islands -o output/simplified_buildings.geojson
+    mapshaper output/updated_canada.geojson -simplify weighted 15% -o output/simplified_canada.geojson
 
-    mapshaper output/updated_canada.geojson -simplify weighted 10% -o output/simplified_canada.geojson
+
+    node --max-old-space-size=25000 /usr/local/bin/mapshaper output/simplified_canada.geojson -clip output/merged.geojson -o precision=0.000001 output/canada_intersect.geojson
 ```
 
 ```bash
-tippecanoe --output="output/canada.pmtiles" --generate-ids --force --no-feature-limit --no-tile-size-limit --detect-shared-borders --coalesce-fraction-as-needed --coalesce-densest-as-needed --coalesce-smallest-as-needed --coalesce --reorder --minimum-zoom=0 --maximum-zoom=15 -x DAUID -x DGUID -x LANDAREA -x PRUID "output/simplified_canada.geojson"
+tippecanoe --output="output/canada-background.pmtiles" --generate-ids --force --no-feature-limit --no-tile-size-limit --detect-shared-borders --coalesce-fraction-as-needed --coalesce-densest-as-needed --coalesce-smallest-as-needed --coalesce --reorder --minimum-zoom=0 --maximum-zoom=15 -x DAUID -x DGUID -x LANDAREA -x PRUID -x A -x B -x C -x D "output/simplified_canada.geojson"
 ````
 
 ```bash
-tippecanoe --output="output/buildings.pmtiles" --generate-ids --force --no-feature-limit --no-tile-size-limit --detect-shared-borders --coalesce-fraction-as-needed --coalesce-densest-as-needed --coalesce-smallest-as-needed --coalesce --reorder --minimum-zoom=0 --maximum-zoom=15 "output/buildings_2.geojson"
+tippecanoe --output="output/canada-foreground.pmtiles" --generate-ids --force --no-feature-limit --no-tile-size-limit --detect-shared-borders --coalesce-fraction-as-needed --coalesce-densest-as-needed --coalesce-smallest-as-needed --coalesce --reorder --minimum-zoom=0 --maximum-zoom=15 -x DAUID -x DGUID -x LANDAREA -x PRUID -x A_Q -x B_Q -x C_Q -x D_Q "output/canada_intersect.geojson"
 ```

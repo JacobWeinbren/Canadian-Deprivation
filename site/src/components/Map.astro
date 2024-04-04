@@ -1,0 +1,165 @@
+<div id="map" class="w-screen h-screen"></div>
+<div id="geocoder" class="geocoder fixed top-4 left-4 z-10"></div>
+
+<div
+	class="sm:w-[500px] text-sm w-full flex flex-col gap-2 absolute bottom-10 rounded-md z-10 bg-white p-4 left-1/2 transform -translate-x-1/2"
+>
+	<div>
+		<p class="text-md font-semibold" id="title">Deprivation Index 2021</p>
+		<p class="mb-2">Canada</p>
+	</div>
+
+	<div>
+		<select id="variable-select" class="p-2 rounded">
+			<option value="A">Residential instability</option>
+			<option value="B">Economic dependency</option>
+			<option value="C">Ethno-cultural composition</option>
+			<option value="D">Situational vulnerability</option>
+		</select>
+	</div>
+
+	<div>
+		<div id="gradient" class="w-full h-4 rounded"></div>
+		<div class="flex justify-between">
+			<span id="min">-2 (least deprived)</span>
+			<span id="max">2 (most deprived)</span>
+		</div>
+	</div>
+
+	<div id="hover">Hover over a point to see its value.</div>
+</div>
+
+<script lang="ts">
+	import mapboxgl from "mapbox-gl";
+	import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
+	import chroma from "chroma-js";
+
+	const MAPBOX_TOKEN = import.meta.env.PUBLIC_MAPBOX_TOKEN;
+	const variableSelect = document.getElementById("variable-select");
+	let selectedVariable = "A";
+
+	const domainStart = -2;
+	const domainEnd = 2;
+	const colorScale = chroma
+		.scale(["#0571b0", "#92c5de", "#f7f7f7", "#f4a582", "#ca0020"])
+		.domain([domainStart, -1, 0, 1, domainEnd]);
+
+	const numberOfStops = 5;
+	const stepSize = (domainEnd - domainStart) / (numberOfStops - 1);
+	const stops = Array.from({ length: numberOfStops }, (_, i) =>
+		colorScale(domainStart + i * stepSize).hex()
+	);
+	const gradientStyle = `linear-gradient(to right, ${stops.join(", ")})`;
+	document.getElementById("gradient").style.background = gradientStyle;
+
+	const map = new mapboxgl.Map({
+		container: "map",
+		center: [-79.4, 43.7],
+		zoom: 9,
+		minZoom: 0,
+		maxZoom: 15,
+		style: "mapbox://styles/mapbox/dark-v11?optimize=true",
+		accessToken: MAPBOX_TOKEN,
+		antialias: true,
+		projection: { name: "mercator" },
+	});
+
+	function getColorStops() {
+		return colorScale.domain().flatMap((d) => [d, colorScale(d).hex()]);
+	}
+
+	map.on("load", () => {
+		const firstLabelLayerId = map
+			.getStyle()
+			.layers.find((layer) => layer.type === "symbol").id;
+
+		map.addSource("background", {
+			type: "vector",
+			tiles: [
+				"https://map.jacobweinbren.workers.dev/canada-background/{z}/{x}/{y}.mvt",
+			],
+			minzoom: 0,
+			maxzoom: 15,
+		});
+
+		map.addLayer(
+			{
+				id: "background-layer",
+				type: "fill",
+				source: "background",
+				"source-layer": "simplified_canada",
+				layout: {
+					visibility: "none",
+				},
+			},
+			firstLabelLayerId
+		);
+
+		map.addSource("foreground", {
+			type: "vector",
+			tiles: [
+				"https://map.jacobweinbren.workers.dev/canada-foreground/{z}/{x}/{y}.mvt",
+			],
+			minzoom: 0,
+			maxzoom: 15,
+		});
+
+		map.addLayer({
+			id: "buildings-layer",
+			type: "fill",
+			source: "foreground",
+			"source-layer": "canada_intersect",
+			paint: {
+				"fill-color": [
+					"case",
+					["!=", ["get", selectedVariable], null],
+					[
+						"interpolate",
+						["linear"],
+						["get", selectedVariable],
+						...getColorStops(),
+					],
+					"rgba(0, 0, 0, 0)",
+				],
+				"fill-opacity": [
+					"case",
+					["!=", ["get", selectedVariable], null],
+					1,
+					0,
+				],
+			},
+		});
+
+		function updateMap() {
+			map.setPaintProperty("buildings-layer", "fill-color", [
+				"interpolate",
+				["linear"],
+				["get", selectedVariable],
+				...getColorStops(),
+			]);
+		}
+
+		variableSelect.addEventListener("change", () => {
+			selectedVariable = variableSelect.value;
+			updateMap();
+		});
+
+		map.on("mousemove", "background-layer", (e) => {
+			const infoDiv = document.querySelector("#hover");
+			if (e.features.length === 0 || !infoDiv) return;
+			const feature = e.features[0];
+			const quintile =
+				feature.properties[`${selectedVariable}_Q`].toFixed(2);
+			infoDiv.innerHTML = `This area is in quintile <span class="font-semibold">${quintile} tons</span>, out of 5.`;
+		});
+
+		const geocoder = new MapboxGeocoder({
+			accessToken: MAPBOX_TOKEN,
+			mapboxgl: mapboxgl,
+		});
+		document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
+
+		map.addControl(new mapboxgl.NavigationControl());
+		map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+	});
+</script>
