@@ -14,7 +14,7 @@
 			<option value="A">Residential instability</option>
 			<option value="B">Economic dependency</option>
 			<option value="C">Ethno-cultural composition</option>
-			<option value="D">Situational vulnerability</option>
+			<option value="D" selected>Situational vulnerability</option>
 		</select>
 	</div>
 
@@ -38,7 +38,7 @@
 
 	const MAPBOX_TOKEN = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 	const variableSelect = document.getElementById("variable-select");
-	let selectedVariable = "A";
+	let selectedVariable = "D";
 
 	const colorStops = {
 		A: [-1.02, -0.66, -0.28, 0.31, 1.54],
