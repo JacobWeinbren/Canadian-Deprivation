@@ -51,15 +51,13 @@
 		D: [-0.89, -0.46, -0.14, 0.21, 0.84],
 	};
 
-	const colorScale = chroma
-		.scale(["#0571b0", "#92c5de", "#f7f7f7", "#f4a582", "#ca0020"])
-		.domain([-2, -1, 0, 1, 2]);
+	const colors = ["#0571b0", "#92c5de", "#f7f7f7", "#f4a582", "#ca0020"];
+
+	const colorScale = chroma.scale(colors).domain([-2, -1, 0, 1, 2]);
 
 	const stops = colorScale.colors(5);
 	const gradientStyle = `linear-gradient(to right, ${stops.join(", ")})`;
 	document.getElementById("gradient").style.background = gradientStyle;
-
-	const colors = ["#ca0020", "#f4a582", "#f7f7f7", "#92c5de", "#0571b0"];
 
 	const map = new mapboxgl.Map({
 		container: "map",
@@ -98,22 +96,10 @@
 			.getStyle()
 			.layers.find((layer) => layer.type === "symbol").id;
 
-		function createMaskLayer() {
-			return new MVTLayer({
-				id: "mask-layer",
-				data: "https://map.jacobweinbren.workers.dev/canada-cleaned/{z}/{x}/{y}.mvt",
-				binary: false,
-				operation: "mask",
-				getFillColor: [255, 255, 255],
-				lineWidthMinPixels: 1,
-				beforeId: firstLabelLayerId,
-			});
-		}
-
 		function createBackgroundLayer() {
 			return new MVTLayer({
 				id: "background-layer",
-				data: "https://map.jacobweinbren.workers.dev/canada-background/{z}/{x}/{y}.mvt",
+				data: "https://map.jacobweinbren.workers.dev/canada-deprivation-areas/{z}/{x}/{y}.mvt",
 				getFillColor: () => [0, 0, 0, 0],
 				pickable: true,
 				onHover: (info) => {
@@ -135,12 +121,12 @@
 
 		function createForegroundLayer() {
 			const colorScale = chroma
-				.scale(["#0571b0", "#92c5de", "#f7f7f7", "#f4a582", "#ca0020"])
+				.scale(colors)
 				.domain(colorStops[selectedVariable]);
 
 			return new MVTLayer({
 				id: "foreground-layer",
-				data: "https://map.jacobweinbren.workers.dev/canada-background/{z}/{x}/{y}.mvt",
+				data: "https://map.jacobweinbren.workers.dev/canada-deprivation-buildings/{z}/{x}/{y}.mvt",
 				getFillColor: (d) => {
 					const color = colorScale(
 						d.properties[selectedVariable]
@@ -152,22 +138,32 @@
 						number,
 					];
 				},
+				getLineColor: (d) => {
+					const color = colorScale(
+						d.properties[selectedVariable]
+					).rgb();
+					return [color[0], color[1], color[2], 255] as [
+						number,
+						number,
+						number,
+						number,
+					];
+				},
+				lineWidthMinPixels: 1,
 				updateTriggers: {
 					getFillColor: [selectedVariable],
+					getLineColor: [selectedVariable],
 				},
-				extensions: [new MaskExtension()],
-				maskId: "mask-layer",
 				beforeId: firstLabelLayerId,
 			});
 		}
 
 		function updateMap() {
-			const maskLayer = createMaskLayer();
 			const backgroundLayer = createBackgroundLayer();
 			const foregroundLayer = createForegroundLayer();
 
 			deckOverlay.setProps({
-				layers: [maskLayer, backgroundLayer, foregroundLayer],
+				layers: [backgroundLayer, foregroundLayer],
 			});
 		}
 

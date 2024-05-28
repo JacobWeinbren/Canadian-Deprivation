@@ -10,7 +10,7 @@
 
 ## Commands
 
-````bash
+```bash
     mapshaper output/updated_canada.geojson -simplify weighted 15% -o output/simplified_canada.geojson
 
 
@@ -35,4 +35,23 @@ tippecanoe --output="output/canada-background.pmtiles" \
            --simplification=20 \
            -x DAUID -x DGUID -x LANDAREA -x PRUID \
            "output/simplified_canada.geojson"
-````
+```
+
+```bash
+tippecanoe --output="output/canada-deprivation-buildings.pmtiles" \
+           --layer="maplayer" \
+           --no-feature-limit \
+           --detect-shared-borders \
+           --coalesce-fraction-as-needed \
+           --coalesce-densest-as-needed \
+           --coalesce-smallest-as-needed \
+           --increase-gamma-as-needed \
+           --coalesce \
+           --reorder \
+           --minimum-zoom=0 \
+           --maximum-zoom=16 \
+           --force \
+           --simplification=20 \
+           -x DAUID -x DGUID -x LANDAREA -x PRUID \
+           "output/canada-deprivation-buildings.geojson"
+```
