@@ -32,16 +32,18 @@
 </div>
 
 <script>
-	import mapboxgl from "mapbox-gl";
+	import { GeoJsonLayer } from "@deck.gl/layers";
+	import { MapboxOverlay } from "@deck.gl/mapbox";
+	import { MVTLayer } from "@deck.gl/geo-layers";
+	import { MaskExtension } from "@deck.gl/extensions";
 	import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
+	import mapboxgl from "mapbox-gl";
 	import chroma from "chroma-js";
 
 	const MAPBOX_TOKEN = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 	const variableSelect = document.getElementById("variable-select");
 	let selectedVariable = "D";
 
-	// =MEDIAN(FILTER(E$2:E$55828, D$2:D$55828=1))
-	// Where E is quntile and D is value
 	const colorStops = {
 		A: [-1.02, -0.66, -0.28, 0.31, 1.54],
 		B: [-0.9, -0.66, -0.35, 0.24, 1.54],
@@ -49,31 +51,34 @@
 		D: [-0.89, -0.46, -0.14, 0.21, 0.84],
 	};
 
-	const domainStart = -2;
-	const domainEnd = 2;
 	const colorScale = chroma
 		.scale(["#0571b0", "#92c5de", "#f7f7f7", "#f4a582", "#ca0020"])
-		.domain([domainStart, -1, 0, 1, domainEnd]);
+		.domain([-2, -1, 0, 1, 2]);
 
-	const numberOfStops = 5;
-	const stepSize = (domainEnd - domainStart) / (numberOfStops - 1);
-	const stops = Array.from({ length: numberOfStops }, (_, i) =>
-		colorScale(domainStart + i * stepSize).hex()
-	);
+	const stops = colorScale.colors(5);
 	const gradientStyle = `linear-gradient(to right, ${stops.join(", ")})`;
 	document.getElementById("gradient").style.background = gradientStyle;
+
+	const colors = ["#ca0020", "#f4a582", "#f7f7f7", "#92c5de", "#0571b0"];
 
 	const map = new mapboxgl.Map({
 		container: "map",
 		center: [-79.4, 43.7],
 		zoom: 9,
-		minZoom: 0,
-		maxZoom: 15,
+		minZoom: 6,
+		maxZoom: 16,
 		style: "mapbox://styles/mapbox/dark-v11?optimize=true",
 		accessToken: MAPBOX_TOKEN,
 		antialias: true,
 		projection: { name: "mercator" },
 	});
+
+	const deckOverlay = new MapboxOverlay({
+		interleaved: true,
+		layers: [],
+	});
+
+	map.addControl(deckOverlay);
 
 	function updateMinMax() {
 		const selectedStops = colorStops[selectedVariable];
@@ -88,96 +93,85 @@
 
 	updateMinMax();
 
-	function getColorStops() {
-		const selectedStops = colorStops[selectedVariable];
-
-		return [
-			selectedStops[0],
-			"#0571b0",
-			selectedStops[1],
-			"#92c5de",
-			selectedStops[2],
-			"#f7f7f7",
-			selectedStops[3],
-			"#f4a582",
-			selectedStops[4],
-			"#ca0020",
-		];
-	}
-
 	map.on("load", () => {
 		const firstLabelLayerId = map
 			.getStyle()
 			.layers.find((layer) => layer.type === "symbol").id;
 
-		map.addSource("background", {
-			type: "vector",
-			tiles: [
-				"https://map.jacobweinbren.workers.dev/canada-background/{z}/{x}/{y}.mvt",
-			],
-			minzoom: 0,
-			maxzoom: 15,
-		});
+		function createMaskLayer() {
+			return new MVTLayer({
+				id: "mask-layer",
+				data: "https://map.jacobweinbren.workers.dev/canada-cleaned/{z}/{x}/{y}.mvt",
+				binary: false,
+				operation: "mask",
+				getFillColor: [255, 255, 255],
+				lineWidthMinPixels: 1,
+				beforeId: firstLabelLayerId,
+			});
+		}
 
-		map.addLayer(
-			{
+		function createBackgroundLayer() {
+			return new MVTLayer({
 				id: "background-layer",
-				type: "fill",
-				source: "background",
-				"source-layer": "maplayer",
-				paint: {
-					"fill-color": "rgba(0, 0, 0, 0)",
+				data: "https://map.jacobweinbren.workers.dev/canada-background/{z}/{x}/{y}.mvt",
+				getFillColor: () => [0, 0, 0, 0],
+				pickable: true,
+				onHover: (info) => {
+					const infoDiv = document.querySelector("#meta");
+					if (info.object) {
+						const feature = info.object;
+						const quintile =
+							feature.properties[`${selectedVariable}_Q`].toFixed(
+								0
+							);
+						infoDiv.innerHTML = `This area is in quintile <span class="font-semibold">${quintile}</span>, out of 5.`;
+					} else {
+						infoDiv.innerHTML =
+							"Hover over a point to see its value.";
+					}
 				},
-			},
-			firstLabelLayerId
-		);
+			});
+		}
 
-		map.addSource("foreground", {
-			type: "vector",
-			tiles: [
-				"https://map.jacobweinbren.workers.dev/canada-foreground/{z}/{x}/{y}.mvt",
-			],
-			minzoom: 0,
-			maxzoom: 15,
-		});
+		function createForegroundLayer() {
+			const colorScale = chroma
+				.scale(["#0571b0", "#92c5de", "#f7f7f7", "#f4a582", "#ca0020"])
+				.domain(colorStops[selectedVariable]);
 
-		map.addLayer(
-			{
-				id: "buildings-layer",
-				type: "fill",
-				source: "foreground",
-				"source-layer": "maplayer",
-				paint: {
-					"fill-color": [
-						"case",
-						["!=", ["get", selectedVariable], null],
-						[
-							"interpolate",
-							["linear"],
-							["get", selectedVariable],
-							...getColorStops(),
-						],
-						"rgba(0, 0, 0, 0)",
-					],
-					"fill-opacity": [
-						"case",
-						["!=", ["get", selectedVariable], null],
-						1,
-						0,
-					],
+			return new MVTLayer({
+				id: "foreground-layer",
+				data: "https://map.jacobweinbren.workers.dev/canada-background/{z}/{x}/{y}.mvt",
+				getFillColor: (d) => {
+					const color = colorScale(
+						d.properties[selectedVariable]
+					).rgb();
+					return [color[0], color[1], color[2], 255] as [
+						number,
+						number,
+						number,
+						number,
+					];
 				},
-			},
-			firstLabelLayerId
-		);
+				updateTriggers: {
+					getFillColor: [selectedVariable],
+				},
+				extensions: [new MaskExtension()],
+				maskId: "mask-layer",
+				beforeId: firstLabelLayerId,
+			});
+		}
 
 		function updateMap() {
-			map.setPaintProperty("buildings-layer", "fill-color", [
-				"interpolate",
-				["linear"],
-				["get", selectedVariable],
-				...getColorStops(),
-			]);
+			const maskLayer = createMaskLayer();
+			const backgroundLayer = createBackgroundLayer();
+			const foregroundLayer = createForegroundLayer();
+
+			deckOverlay.setProps({
+				layers: [maskLayer, backgroundLayer, foregroundLayer],
+			});
 		}
+
+		updateMap();
 
 		variableSelect.addEventListener("change", () => {
 			selectedVariable = (variableSelect as HTMLSelectElement).value;
@@ -185,21 +179,12 @@
 			updateMap();
 		});
 
-		map.on("mousemove", "background-layer", (e) => {
-			const infoDiv = document.querySelector("#meta");
-			if (e.features.length === 0 || !infoDiv) return;
-			const feature = e.features[0];
-			const quintile =
-				feature.properties[`${selectedVariable}_Q`].toFixed(0);
-			infoDiv.innerHTML = `This area is in quintile <span class="font-semibold">${quintile}</span>, out of 5.`;
-		});
-
 		const geocoder = new MapboxGeocoder({
 			accessToken: MAPBOX_TOKEN,
 			mapboxgl: mapboxgl,
+			marker: false,
 		});
-		document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
 
-		map.addControl(new mapboxgl.NavigationControl());
+		document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
 	});
 </script>
