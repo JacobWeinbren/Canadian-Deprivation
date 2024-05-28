@@ -18,9 +18,41 @@
 ```
 
 ```bash
-tippecanoe --output="output/canada-background.pmtiles" --generate-ids --force --no-feature-limit --no-tile-size-limit --detect-shared-borders --coalesce-fraction-as-needed --coalesce-densest-as-needed --coalesce-smallest-as-needed --coalesce --reorder --minimum-zoom=0 --maximum-zoom=15 -x DAUID -x DGUID -x LANDAREA -x PRUID -x A -x B -x C -x D "output/simplified_canada.geojson"
+tippecanoe --output="output/canada-background.pmtiles" \
+           --layer="maplayer" \
+           --no-feature-limit \
+           --no-tile-size-limit \
+           --detect-shared-borders \
+           --coalesce-fraction-as-needed \
+           --coalesce-densest-as-needed \
+           --coalesce-smallest-as-needed \
+           --increase-gamma-as-needed \
+           --coalesce \
+           --reorder \
+           --minimum-zoom=0 \
+           --maximum-zoom=16 \
+           --force \
+           --simplification=20 \
+           -x DAUID -x DGUID -x LANDAREA -x PRUID -x A -x B -x C -x D \
+           "output/simplified_canada.geojson"
 ````
 
 ```bash
-tippecanoe --output="output/canada-foreground.pmtiles" --generate-ids --force --no-feature-limit --no-tile-size-limit --detect-shared-borders --coalesce-fraction-as-needed --coalesce-densest-as-needed --coalesce-smallest-as-needed --coalesce --reorder --minimum-zoom=0 --maximum-zoom=15 -x DAUID -x DGUID -x LANDAREA -x PRUID -x A_Q -x B_Q -x C_Q -x D_Q "output/canada_intersect.geojson"
+tippecanoe --output="output/canada-foreground.pmtiles" \
+           --layer="maplayer" \
+           --no-feature-limit \
+           --no-tile-size-limit \
+           --detect-shared-borders \
+           --coalesce-fraction-as-needed \
+           --coalesce-densest-as-needed \
+           --coalesce-smallest-as-needed \
+           --increase-gamma-as-needed \
+           --coalesce \
+           --reorder \
+           --minimum-zoom=0 \
+           --maximum-zoom=16 \
+           --force \
+           --simplification=20 \
+           -x DAUID -x DGUID -x LANDAREA -x PRUID -x A_Q -x B_Q -x C_Q -x D_Q \
+           "output/canada_intersect.geojson"
 ```
